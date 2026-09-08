@@ -350,12 +350,8 @@
         }).addTo(map);
 
         function validateLandCoordinates(latlng) {
-            let lat = latlng.lat;
-            let lng = latlng.lng;
-            if (lat > 41.630 && lat < 41.670 && lng > 41.625 && lng < 41.650) {
-                lng = 41.632; 
-            }
-            return L.latLng(lat, lng);
+            // უშუალოდ აბრუნებს კოორდინატს ყოველგვარი შეზღუდვის გარეშე
+            return latlng;
         }
 
         map.on('click', e => {
