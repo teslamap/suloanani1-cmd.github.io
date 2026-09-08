@@ -20,7 +20,7 @@
         body.dark-mode .search-input, body.dark-mode .settings-input, body.dark-mode .settings-select { color: #fff; background: #222; border: 1px solid #444; }
         body.dark-mode .btn { background: #2c2c2e; color: #fff; border: 1px solid #444; }
         body.dark-mode .btn:hover { background: #3a3a3c; }
-        body.dark-mode .fav-panel, body.dark-mode .settings-panel, body.dark-mode .suggestions-dropdown { background: rgba(25, 25, 25, 0.95); border: 1px solid #333; }
+        body.dark-mode .fav-panel, body.dark-mode .settings-panel, body.dark-mode .suggestions-dropdown, body.dark-mode .custom-modal { background: rgba(25, 25, 25, 0.95); border: 1px solid #333; }
         body.dark-mode .fav-item, body.dark-mode .trip-item, body.dark-mode .sug-item { background: #222; border: 1px solid #333; color: #fff; }
         body.dark-mode .fav-item:hover, body.dark-mode .trip-item:hover, body.dark-mode .sug-item:hover { background: #333; }
         body.dark-mode .info-card-bg { background: rgba(20, 20, 20, 0.9); border: 1px solid #007aff; }
@@ -33,7 +33,7 @@
         body.light-mode .search-input, body.light-mode .settings-input, body.light-mode .settings-select { color: #000; background: #fff; border: 1px solid #ccc; }
         body.light-mode .btn { background: #fff; color: #000; border: 1px solid #ccc; }
         body.light-mode .btn:hover { background: #f0f0f0; }
-        body.light-mode .fav-panel, body.light-mode .settings-panel, body.light-mode .suggestions-dropdown { background: rgba(255, 255, 255, 0.98); border: 1px solid #ccc; }
+        body.light-mode .fav-panel, body.light-mode .settings-panel, body.light-mode .suggestions-dropdown, body.light-mode .custom-modal { background: rgba(255, 255, 255, 0.98); border: 1px solid #ccc; }
         body.light-mode .fav-item, body.light-mode .trip-item, body.light-mode .sug-item { background: #f9f9f9; color: #000; border: 1px solid #eee; }
         body.light-mode .fav-item:hover, body.light-mode .trip-item:hover, body.light-mode .sug-item:hover { background: #f0f0f0; }
         body.light-mode .fav-title, body.light-mode .settings-title { color: #555; }
@@ -79,6 +79,18 @@
         .calib-section { margin-top: 15px; border-top: 1px dashed #555; padding-top: 10px; }
         .trip-item { padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
         .chart-container { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 11px; color: #aaa; text-align: center; }
+
+        /* ========= CUSTOM IN-PAGE MODALS (Replaces alert/confirm/prompt) ========= */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .custom-modal { width: 300px; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 12px; text-align: center; }
+        .custom-modal h3 { font-size: 16px; margin-bottom: 4px; }
+        .custom-modal p { font-size: 13px; color: #aaa; }
+        .custom-modal input { padding: 8px 10px; border-radius: 6px; font-size: 14px; outline: none; width: 100%; }
+        .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+        .modal-actions button { flex: 1; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
+        .btn-modal-cancel { background: #444; color: #fff; }
+        .btn-modal-confirm { background: #007aff; color: #fff; }
+        .btn-modal-danger { background: #ff3b30; color: #fff; }
 
         .info-card { position: absolute; top: 70px; right: 12px; z-index: 1000; display: none; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: auto; }
         .metrics-card { padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: bold; display: flex; flex-direction: column; gap: 4px; text-align: right; box-shadow: 0 4px 16px rgba(0,0,0,0.3); backdrop-filter: blur(8px); min-width: 140px; }
@@ -140,7 +152,6 @@
             .info-card {
                 top: 105px;
             }
-            /* როცა მობილურზე ფავორიტები ღიაა, ინფო ბარი ჩამოიწიოს ქვემოთ */
             body.fav-panel-open .info-card {
                 top: 350px; 
             }
@@ -150,6 +161,21 @@
 <body class="dark-mode">
 
     <div id="map"></div>
+
+    <!-- სრულიად უსაფრთხო ჩაშენებული დიალოგების ფანჯარა (არ იწვევს ბრაუზერის ბლოკირებას) -->
+    <div class="modal-overlay" id="customModalOverlay">
+        <div class="custom-modal panel-bg" id="customModalBox">
+            <h3 id="modalTitle">შეტყობინება</h3>
+            <p id="modalDesc">ტექსტი...</p>
+            <div id="modalInputContainer" style="display:none;">
+                <input type="text" id="modalInput" placeholder="შეიყვანეთ მნიშვნელობა...">
+            </div>
+            <div class="modal-actions" id="modalActions">
+                <button class="btn-modal-cancel" id="modalCancelBtn" onclick="closeCustomModal(false)">გაუქმება</button>
+                <button class="btn-modal-confirm" id="modalConfirmBtn" onclick="closeCustomModal(true)">დადასტურება</button>
+            </div>
+        </div>
+    </div>
 
     <div class="top-bar">
         <button class="btn btn-fs" onclick="forceRefreshMap()" title="მაპის განახლება">⛶</button>
@@ -246,6 +272,48 @@
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
     <script>
+        // Custom Modal Controller (replaces native alert/confirm/prompt)
+        let modalCallback = null;
+
+        function showCustomConfirm(title, desc, onYes) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalDesc').innerText = desc;
+            document.getElementById('modalInputContainer').style.display = 'none';
+            document.getElementById('modalCancelBtn').style.display = 'inline-block';
+            document.getElementById('customModalOverlay').style.display = 'flex';
+            modalCallback = onYes;
+        }
+
+        function showCustomPrompt(title, desc, defaultValue, onValueEntered) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalDesc').innerText = desc;
+            const inputEl = document.getElementById('modalInput');
+            inputEl.value = defaultValue || '';
+            document.getElementById('modalInputContainer').style.display = 'block';
+            document.getElementById('modalCancelBtn').style.display = 'inline-block';
+            document.getElementById('customModalOverlay').style.display = 'flex';
+            setTimeout(() => inputEl.focus(), 100);
+            modalCallback = onValueEntered;
+        }
+
+        function showCustomAlert(title, desc) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalDesc').innerText = desc;
+            document.getElementById('modalInputContainer').style.display = 'none';
+            document.getElementById('modalCancelBtn').style.display = 'none';
+            document.getElementById('customModalOverlay').style.display = 'flex';
+            modalCallback = () => {};
+        }
+
+        function closeCustomModal(confirmed) {
+            document.getElementById('customModalOverlay').style.display = 'none';
+            if (confirmed && modalCallback) {
+                const inputVal = document.getElementById('modalInput').value;
+                modalCallback(inputVal);
+            }
+            modalCallback = null;
+        }
+
         const teslaDatabase = {
             "Model 3": {
                 "Standard Range Plus": [
@@ -367,13 +435,12 @@
             return latlng;
         }
 
-        // ნავიგაციის გაუქმების ფუნქცია დადასტურებით
         function cancelNavigation() {
-            if (confirm("დარწმუნებული ხართ, რომ გსურთ ნავიგაციის გაუქმება?")) {
+            showCustomConfirm("ნავიგაცია", "დარწმუნებული ხართ, რომ გსურთ ნავიგაციის გაუქმება?", () => {
                 currentDestination = null;
                 routingControl.setWaypoints([myLocation]);
                 document.getElementById('infoCard').style.display = 'none';
-            }
+            });
         }
 
         map.on('click', e => {
@@ -552,7 +619,7 @@
                     routingControl.setWaypoints([myLocation, currentDestination]);
                     map.setView(currentDestination, 14, { animate: true });
                 } else {
-                    alert("საქართველოში მსგავსი ადგილი ვერ მოიძებნა");
+                    showCustomAlert("ძებნა", "საქართველოში მსგავსი ადგილი ვერ მოიძებნა");
                 }
             }  catch (e) { console.error(e); }
         }
@@ -565,57 +632,59 @@
 
         function startCalibrationTrip() {
             if (currentRouteDist <= 0) {
-                alert("ჯერ მონიშნეთ მარშრუტი რუკაზე!");
+                showCustomAlert("კალიბრაცია", "ჯერ მონიშნეთ მარშრუტი რუკაზე!");
                 return;
             }
 
-            const startPct = prompt("შეიყვანეთ ბატარეის პროცენტი მგზავრობის დაწყებისას (მაგ: 90):");
-            if (startPct === null) return;
-            const endPct = prompt("შეიყვანეთ ბატარეის პროცენტი მგზავრობის დასრულებისას (მაგ: 45):");
-            if (endPct === null) return;
+            showCustomPrompt("ტრიპის კალიბრაცია", "შეიყვანეთ ბატარეის პროცენტი მგზავრობის დაწყებისას (მაგ: 90):", "90", (startPctStr) => {
+                if (!startPctStr) return;
+                showCustomPrompt("ტრიპის კალიბრაცია", "შეიყვანეთ ბატარეის პროცენტი მგზავრობის დასრულებისას (მაგ: 45):", "45", (endPctStr) => {
+                    if (!endPctStr) return;
 
-            const sp = parseFloat(startPct);
-            const ep = parseFloat(endPct);
+                    const sp = parseFloat(startPctStr);
+                    const ep = parseFloat(endPctStr);
 
-            if (isNaN(sp) || isNaN(ep) || sp <= ep) {
-                alert("მონაცემები არასწორია! დაწყების პროცენტი მეტი უნდა იყოს დასრულების პროცენტზე.");
-                return;
-            }
+                    if (isNaN(sp) || isNaN(ep) || sp <= ep) {
+                        showCustomAlert("შეცდომა", "მონაცემები არასწორია! დაწყების პროცენტი მეტი უნდა იყოს დასრულების პროცენტზე.");
+                        return;
+                    }
 
-            const usedPct = sp - ep;
-            loadSettingsFromUI();
+                    const usedPct = sp - ep;
+                    loadSettingsFromUI();
 
-            const totalBattKwh = (carSettings.fullRange * carSettings.baseConsumption) / 1000;
-            const actualKwh = (usedPct / 100) * totalBattKwh;
+                    const totalBattKwh = (carSettings.factoryRange * carSettings.baseConsumption) / 1000;
+                    const actualKwh = (usedPct / 100) * totalBattKwh;
 
-            let elevationFactorKwh = (currentRouteClimb * 0.005) - (currentRouteDescent * 0.003);
-            if (elevationFactorKwh < 0) elevationFactorKwh = 0;
+                    let elevationFactorKwh = (currentRouteClimb * 0.005) - (currentRouteDescent * 0.003);
+                    if (elevationFactorKwh < 0) elevationFactorKwh = 0;
 
-            let pureDriveKwh = actualKwh - elevationFactorKwh;
-            if (pureDriveKwh < 0) pureDriveKwh = actualKwh;
+                    let pureDriveKwh = actualKwh - elevationFactorKwh;
+                    if (pureDriveKwh < 0) pureDriveKwh = actualKwh;
 
-            const calculatedNewConsumption = Math.round((pureDriveKwh * 1000) / currentRouteDist);
+                    const calculatedNewConsumption = Math.round((pureDriveKwh * 1000) / currentRouteDist);
 
-            if (calculatedNewConsumption > 80 && calculatedNewConsumption < 350) {
-                carSettings.baseConsumption = Math.round((carSettings.baseConsumption + calculatedNewConsumption) / 2);
-                document.getElementById('baseConsumptionInput').value = carSettings.baseConsumption;
-                
-                calibrationTrips.unshift({
-                    dist: currentRouteDist.toFixed(1),
-                    used: usedPct.toFixed(1),
-                    newCons: carSettings.baseConsumption,
-                    date: new Date().toLocaleDateString()
+                    if (calculatedNewConsumption > 80 && calculatedNewConsumption < 350) {
+                        carSettings.baseConsumption = Math.round((carSettings.baseConsumption + calculatedNewConsumption) / 2);
+                        document.getElementById('baseConsumptionInput').value = carSettings.baseConsumption;
+                        
+                        calibrationTrips.unshift({
+                            dist: currentRouteDist.toFixed(1),
+                            used: usedPct.toFixed(1),
+                            newCons: carSettings.baseConsumption,
+                            date: new Date().toLocaleDateString()
+                        });
+                        if (calibrationTrips.length > 5) calibrationTrips.pop();
+
+                        localStorage.setItem('tesla_calib_trips', JSON.stringify(calibrationTrips));
+                        saveSettings();
+                        renderCalibrationUI();
+
+                        showCustomAlert("წარმატება", `ტრიპი დაკალიბრდა!\nახალი რეკომენდებული საბაზისო წვა: ${carSettings.baseConsumption} Wh/km`);
+                    } else {
+                        showCustomAlert("შეცდომა", "გამოთვლილი წვა ცდება ნორმის ფარგლებს (80-350 Wh/km). შეამოწმეთ პროცენტები.");
+                    }
                 });
-                if (calibrationTrips.length > 5) calibrationTrips.pop();
-
-                localStorage.setItem('tesla_calib_trips', JSON.stringify(calibrationTrips));
-                saveSettings();
-                renderCalibrationUI();
-
-                alert(` წარმატებით დაკალიბრდა!\nახალი რეკომენდებული საბაზისო წვა: ${carSettings.baseConsumption} Wh/km`);
-            } else {
-                alert("გამოთვლილი წვა ცდება ნორმის ფარგლებს (80-350 Wh/km). შეამოწმეთ პროცენტები.");
-            }
+            });
         }
 
         function renderCalibrationUI() {
@@ -766,21 +835,22 @@
 
         function saveCurrentPinAsFav() {
             if (!currentDestination) return;
-            const name = prompt('შეიყვანეთ ადგილის სახელი:', 'ახალი ადგილი');
-            if (name && name.trim() !== '') {
-                favorites.push({ name: name.trim(), lat: currentDestination.lat, lng: currentDestination.lng });
-                localStorage.setItem('tesla_favs', JSON.stringify(favorites));
-                renderFavs();
-            }
+            showCustomPrompt("ფავორიტებში დამატება", "შეიყვანეთ ადგილის სახელი:", "ახალი ადგილი", (name) => {
+                if (name && name.trim() !== '') {
+                    favorites.push({ name: name.trim(), lat: currentDestination.lat, lng: currentDestination.lng });
+                    localStorage.setItem('tesla_favs', JSON.stringify(favorites));
+                    renderFavs();
+                }
+            });
         }
 
         function deleteFav(index, event) {
             event.stopPropagation();
-            if (confirm(`წავშალოთ "${favorites[index].name}"?`)) {
+            showCustomConfirm("წაშლა", `წავშალოთ "${favorites[index].name}"?`, () => {
                 favorites.splice(index, 1);
                 localStorage.setItem('tesla_favs', JSON.stringify(favorites));
                 renderFavs();
-            }
+            });
         }
 
         function renderFavs() {
@@ -811,7 +881,6 @@
             panel.classList.toggle('active');
             document.getElementById('settingsPanel').classList.remove('active');
             
-            // მობილურისთვის ქვემოთ წევის კლასის მართვა
             if (panel.classList.contains('active')) {
                 renderFavs();
                 document.body.classList.add('fav-panel-open');
