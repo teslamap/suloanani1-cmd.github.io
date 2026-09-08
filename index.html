@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: background 0.2s, color 0.2s; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: background 0.2s, color 0.2s, top 0.3s; }
         body, html { width: 100%; height: 100%; overflow: hidden; position: relative; }
         
         #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #121212; }
@@ -81,7 +81,13 @@
         .chart-container { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 11px; color: #aaa; text-align: center; }
 
         .info-card { position: absolute; top: 70px; right: 12px; z-index: 1000; display: none; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: auto; }
-        .metrics-card { padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: bold; display: flex; flex-direction: column; gap: 4px; text-align: right; box-shadow: 0 4px 16px rgba(0,0,0,0.3); backdrop-filter: blur(8px); }
+        .metrics-card { padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: bold; display: flex; flex-direction: column; gap: 4px; text-align: right; box-shadow: 0 4px 16px rgba(0,0,0,0.3); backdrop-filter: blur(8px); min-width: 140px; }
+        
+        .route-header-row { display: flex; justify-content: space-between; align-items: center; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px; margin-bottom: 2px; }
+        .route-title { font-size: 11px; color: #aaa; font-weight: normal; }
+        .btn-cancel-route { background: none; border: none; color: #ff3b30; font-size: 15px; font-weight: bold; cursor: pointer; padding: 0 2px; line-height: 1; }
+        .btn-cancel-route:hover { opacity: 0.8; }
+
         .dist-text { color: #34c759; font-size: 15px; }
         .battery-text { color: #e6b800; font-size: 14px; }
         .kwh-text { color: #007aff; font-size: 11px; font-weight: normal; }
@@ -133,6 +139,10 @@
             }
             .info-card {
                 top: 105px;
+            }
+            /* როცა მობილურზე ფავორიტები ღიაა, ინფო ბარი ჩამოიწიოს ქვემოთ */
+            body.fav-panel-open .info-card {
+                top: 350px; 
             }
         }
     </style>
@@ -220,6 +230,10 @@
 
     <div class="info-card" id="infoCard">
         <div class="metrics-card info-card-bg">
+            <div class="route-header-row">
+                <span class="route-title">ნავიგაცია</span>
+                <button class="btn-cancel-route" onclick="cancelNavigation()" title="ნავიგაციის გათიშვა">✕</button>
+            </div>
             <div class="dist-text">⬆ <span id="distVal">0</span> კმ</div>
             <div class="battery-text">🔋 -<span id="batVal">0</span>%</div>
             <div class="kwh-text">(~<span id="kwhVal">0</span> kWh)</div>
@@ -350,8 +364,16 @@
         }).addTo(map);
 
         function validateLandCoordinates(latlng) {
-            // უშუალოდ აბრუნებს კოორდინატს ყოველგვარი შეზღუდვის გარეშე
             return latlng;
+        }
+
+        // ნავიგაციის გაუქმების ფუნქცია დადასტურებით
+        function cancelNavigation() {
+            if (confirm("დარწმუნებული ხართ, რომ გსურთ ნავიგაციის გაუქმება?")) {
+                currentDestination = null;
+                routingControl.setWaypoints([myLocation]);
+                document.getElementById('infoCard').style.display = 'none';
+            }
         }
 
         map.on('click', e => {
@@ -712,6 +734,7 @@
             const panel = document.getElementById('settingsPanel');
             panel.classList.toggle('active');
             document.getElementById('favPanel').classList.remove('active');
+            document.body.classList.remove('fav-panel-open');
         }
 
         function toggleZoomMode() {
@@ -787,7 +810,14 @@
             const panel = document.getElementById('favPanel');
             panel.classList.toggle('active');
             document.getElementById('settingsPanel').classList.remove('active');
-            if (panel.classList.contains('active')) renderFavs();
+            
+            // მობილურისთვის ქვემოთ წევის კლასის მართვა
+            if (panel.classList.contains('active')) {
+                renderFavs();
+                document.body.classList.add('fav-panel-open');
+            } else {
+                document.body.classList.remove('fav-panel-open');
+            }
         }
 
         function goToMyLocation() {
