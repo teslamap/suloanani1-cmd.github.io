@@ -951,18 +951,46 @@
     return out;
   }
   async function elevations(points) {
-    if(points.length<2) return null;
-    const all=[];
-    for(let i=0;i<points.length;i+=80){
-      const batch=points.slice(i,i+80);
+    if(!Array.isArray(points)||points.length<2) return null;
+    // Reuse previously fetched heights so route recalculations do not repeatedly
+    // hit the public elevation endpoint. Cache is local to this browser.
+    const cacheKey=p=>'tesla_dem_elev_'+p.lat.toFixed(5)+'_'+p.lng.toFixed(5);
+    const cached=p=>{
+      try { const v=localStorage.getItem(cacheKey(p)); if(v!==null && Number.isFinite(Number(v))) return Number(v); } catch(e) {}
+      return null;
+    };
+    const heights=new Array(points.length), missing=[], indices=[];
+    points.forEach((p,i)=>{
+      const v=cached(p);
+      if(v===null){ missing.push(p); indices.push(i); } else heights[i]=v;
+    });
+    for(let i=0;i<missing.length;i+=40){
+      const batch=missing.slice(i,i+40), batchIndices=indices.slice(i,i+40);
       const qs='latitude='+batch.map(p=>p.lat.toFixed(5)).join(',')+'&longitude='+batch.map(p=>p.lng.toFixed(5)).join(',');
-      const response=await fetch('https://api.open-meteo.com/v1/elevation?'+qs);
-      if(!response.ok) throw new Error('Elevation service unavailable');
-      const data=await response.json();
-      if(!Array.isArray(data.elevation)||data.elevation.length!==batch.length) throw new Error('Elevation data incomplete');
-      all.push(...data.elevation.map(Number));
+      let data=null, lastError=null;
+      for(let attempt=0;attempt<4;attempt++){
+        try {
+          const response=await fetch('https://api.open-meteo.com/v1/elevation?'+qs);
+          if(response.status===429) throw new Error('Elevation service rate limit (429)');
+          if(!response.ok) throw new Error('Elevation service unavailable ('+response.status+')');
+          data=await response.json();
+          if(!Array.isArray(data.elevation)||data.elevation.length!==batch.length) throw new Error('Elevation data incomplete');
+          break;
+        } catch(err) {
+          lastError=err;
+          if(attempt===3) throw lastError;
+          // Back off when the free online endpoint is temporarily throttling requests.
+          await new Promise(resolve=>setTimeout(resolve,700*Math.pow(2,attempt)));
+        }
+      }
+      batch.forEach((p,j)=>{
+        const h=Number(data.elevation[j]);
+        if(!Number.isFinite(h)) throw new Error('Elevation data incomplete');
+        heights[batchIndices[j]]=h;
+        try { localStorage.setItem(cacheKey(p),String(h)); } catch(e) {}
+      });
     }
-    return all.every(Number.isFinite)?all:null;
+    return heights.every(Number.isFinite)?heights:null;
   }
   function calcPhysics(route, heights, summaryDistance) {
     const pts=sampleCoordinates(route);
