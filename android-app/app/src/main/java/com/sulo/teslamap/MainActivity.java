@@ -1,7 +1,6 @@
 package com.sulo.teslamap;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -37,6 +36,9 @@ public class MainActivity extends AppCompatActivity {
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         s.setMediaPlaybackRequiresUserGesture(false);
+        // Always fetch the hosted app so web code updates arrive without reinstalling the APK.
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        webView.clearCache(true);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -71,11 +73,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        if (savedInstanceState == null) {
-            webView.loadUrl("https://teslamap.github.io/suloanani1-cmd.github.io/");
-        } else {
-            webView.restoreState(savedInstanceState);
-        }
+        // Load the live hosted app on every launch; do not restore a stale WebView page.
+        webView.loadUrl("https://teslamap.github.io/suloanani1-cmd.github.io/?appver=20260930-2");
     }
 
     @Override
