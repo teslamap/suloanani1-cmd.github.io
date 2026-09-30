@@ -8,6 +8,7 @@ import { createClient } from "redis";
 const app = express();
 app.use(express.json({limit:"256kb"}));
 app.set("trust proxy", 1);
+app.use((req,res,next)=>{res.setHeader("Access-Control-Allow-Origin",FRONTEND_ORIGIN);res.setHeader("Access-Control-Allow-Headers","Authorization,Content-Type");res.setHeader("Access-Control-Allow-Methods","GET,POST,OPTIONS");if(req.method==="OPTIONS")return res.sendStatus(204);next();});
 
 const PORT = Number(process.env.PORT || 8080);
 const BASE = process.env.PUBLIC_BASE_URL || "";
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS tokens(
   expires_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
-CREATE TABLE IF NOT EXISTS telemetry(
+CREATE TABLE IF NOT EXISTS sessions(\n  token_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS telemetry(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   received_at INTEGER NOT NULL,
   vin TEXT,
@@ -67,6 +68,9 @@ const getState=db.prepare("SELECT * FROM oauth_state WHERE state=?");
 const deleteState=db.prepare("DELETE FROM oauth_state WHERE state=?");
 const saveTokens=db.prepare("INSERT INTO tokens(id,access_token,refresh_token,expires_at,updated_at) VALUES(1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET access_token=excluded.access_token,refresh_token=COALESCE(excluded.refresh_token,tokens.refresh_token),expires_at=excluded.expires_at,updated_at=excluded.updated_at");
 const getTokens=db.prepare("SELECT * FROM tokens WHERE id=1");
+const saveSession=db.prepare("INSERT INTO sessions(token_hash,created_at,expires_at) VALUES(?,?,?)");
+const getSession=db.prepare("SELECT * FROM sessions WHERE token_hash=? AND expires_at>?");
+const FRONTEND_ORIGIN=process.env.FRONTEND_ORIGIN||"https://teslamap.github.io";
 const insertTelemetry=db.prepare(`INSERT INTO telemetry(received_at,vin,vehicle_speed,soc,odometer,latitude,longitude,battery_range,raw_json) VALUES(?,?,?,?,?,?,?,?,?)`);
 const getActiveTrip=db.prepare("SELECT * FROM trips WHERE vin=? AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1");
 const startTrip=db.prepare("INSERT INTO trips(started_at,vin,start_soc,start_odo,start_lat,start_lng,raw_start) VALUES(?,?,?,?,?,?,?)");
@@ -111,7 +115,10 @@ app.get("/auth/callback",async(req,res)=>{
     const data=await r.json();
     if(!r.ok) return res.status(r.status).json(data);
     saveTokens.run(data.access_token,data.refresh_token||null,Date.now()+Number(data.expires_in||3600)*1000,Date.now());
-    res.send("Tesla connected. You can close this page.");
+    const session=crypto.randomBytes(32).toString("base64url");
+    const hash=crypto.createHash("sha256").update(session).digest("hex");
+    saveSession.run(hash,Date.now(),Date.now()+30*24*60*60*1000);
+    res.type("html").send(`<!doctype html><meta charset="utf-8"><title>Tesla connected</title><p>Tesla connected. This window will close.</p><script>window.opener?.postMessage({type:"tesla-bridge-session",token:${JSON.stringify(session)}},${JSON.stringify(FRONTEND_ORIGIN)});setTimeout(()=>window.close(),500);</script>`);
   }catch(e){res.status(500).json({error:"OAuth callback failed"});}
 });
 
@@ -128,7 +135,21 @@ async function token(){
   return d.access_token;
 }
 
-app.get("/api/vehicles",async(req,res)=>{
+function requireSession(req,res,next){
+  const h=String(req.headers.authorization||"");
+  const raw=h.startsWith("Bearer ")?h.slice(7):"";
+  if(!raw) return res.status(401).json({error:"Not authenticated"});
+  const hash=crypto.createHash("sha256").update(raw).digest("hex");
+  if(!getSession.get(hash,Date.now())) return res.status(401).json({error:"Session expired"});
+  next();
+}
+app.get("/auth/status",(req,res)=>{
+  const h=String(req.headers.authorization||""); const raw=h.startsWith("Bearer ")?h.slice(7):"";
+  if(!raw) return res.json({connected:false});
+  const hash=crypto.createHash("sha256").update(raw).digest("hex");
+  res.json({connected:!!getSession.get(hash,Date.now())});
+});
+app.get("/api/vehicles",requireSession,async(req,res)=>{
   try{
     const access=await token();
     const r=await fetch(`${TESLA_API}/api/1/vehicles`,{headers:{Authorization:`Bearer ${access}`}});
@@ -147,12 +168,12 @@ app.post("/telemetry",async(req,res)=>{
   }catch(e){res.status(400).json({error:"Invalid telemetry payload"});}
 });
 
-app.get("/api/current-drive",async(req,res)=>{
+app.get("/api/current-drive",requireSession,async(req,res)=>{
   const rows=db.prepare("SELECT * FROM telemetry ORDER BY received_at DESC LIMIT 120").all();
   res.json({count:rows.length,telemetry:rows});
 });
 
-app.get("/api/trips",async(req,res)=>{
+app.get("/api/trips",requireSession,async(req,res)=>{
   const limit=Math.min(1000,Math.max(1,Number(req.query.limit)||100));
   res.json({trips:db.prepare("SELECT * FROM trips ORDER BY started_at DESC LIMIT ?").all(limit)});
 });
