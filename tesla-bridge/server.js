@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { createClient } from "redis";
 
 const app = express();
 app.use(express.json({limit:"256kb"}));
@@ -67,6 +68,9 @@ const deleteState=db.prepare("DELETE FROM oauth_state WHERE state=?");
 const saveTokens=db.prepare("INSERT INTO tokens(id,access_token,refresh_token,expires_at,updated_at) VALUES(1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET access_token=excluded.access_token,refresh_token=COALESCE(excluded.refresh_token,tokens.refresh_token),expires_at=excluded.expires_at,updated_at=excluded.updated_at");
 const getTokens=db.prepare("SELECT * FROM tokens WHERE id=1");
 const insertTelemetry=db.prepare(`INSERT INTO telemetry(received_at,vin,vehicle_speed,soc,odometer,latitude,longitude,battery_range,raw_json) VALUES(?,?,?,?,?,?,?,?,?)`);
+const getActiveTrip=db.prepare("SELECT * FROM trips WHERE vin=? AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1");
+const startTrip=db.prepare("INSERT INTO trips(started_at,vin,start_soc,start_odo,start_lat,start_lng,raw_start) VALUES(?,?,?,?,?,?,?)");
+const finishTrip=db.prepare("UPDATE trips SET ended_at=?,end_soc=?,end_odo=?,end_lat=?,end_lng=?,distance_km=?,battery_pct=?,raw_end=? WHERE id=?");
 
 function authUrl(){
   const state=crypto.randomBytes(24).toString("hex");
@@ -159,4 +163,74 @@ app.get("/.well-known/appspecific/com.tesla.3p.public-key.pem",(req,res)=>{
   res.type("application/x-pem-file").send(key.endsWith("\n")?key:key+"\n");
 });
 
-app.listen(PORT,()=>console.log(`Tesla Fleet Bridge listening on :${PORT}`));
+
+function flatFind(obj,names){
+  const wanted=new Set(names.map(x=>x.toLowerCase()));
+  const stack=[obj]; const seen=new Set();
+  while(stack.length){
+    const x=stack.pop();
+    if(!x || typeof x!=="object" || seen.has(x)) continue;
+    seen.add(x);
+    for(const [k,v] of Object.entries(x)){
+      if(wanted.has(k.toLowerCase())) return v;
+      if(v && typeof v==="object") stack.push(v);
+    }
+  }
+  return null;
+}
+function normalizeTelemetry(p){
+  const d=p?.data||p?.record||p||{};
+  const num=(v)=>{const n=Number(v);return Number.isFinite(n)?n:null;};
+  return {
+    vin:p?.vin||d?.vin||null,
+    speed:num(flatFind(d,["VehicleSpeed","vehicle_speed","speed"])),
+    soc:num(flatFind(d,["Soc","soc","SOC"])),
+    odo:num(flatFind(d,["Odometer","odometer"])),
+    lat:num(flatFind(d,["Latitude","latitude"])),
+    lng:num(flatFind(d,["Longitude","longitude"])),
+    range:num(flatFind(d,["EstBatteryRange","est_battery_range"])),
+    packV:num(flatFind(d,["PackVoltage","pack_voltage"])),
+    packA:num(flatFind(d,["PackCurrent","pack_current"]))
+  };
+}
+function saveVehicleTelemetry(p){
+  const n=normalizeTelemetry(p);
+  if(!n.vin) return null;
+  insertTelemetry.run(Date.now(),n.vin,n.speed,n.soc,n.odo,n.lat,n.lng,n.range,JSON.stringify(p));
+  return n;
+}
+const timers=new Map();
+function scheduleTripEnd(vin, raw){
+  clearTimeout(timers.get(vin));
+  timers.set(vin,setTimeout(()=>{
+    const t=getActiveTrip.get(vin); const n=normalizeTelemetry(raw);
+    if(!t) return;
+    const dist=(n.odo!==null&&Number.isFinite(t.start_odo))?Math.max(0,n.odo-t.start_odo):null;
+    const pct=(n.soc!==null&&Number.isFinite(t.start_soc))?Math.max(0,t.start_soc-n.soc):null;
+    finishTrip.run(Date.now(),n.soc,n.odo,n.lat,n.lng,dist,pct,JSON.stringify(raw),t.id);
+  },180000));
+}
+async function startRedis(){
+  const client=createClient({url:process.env.REDIS_URL||"redis://redis:6379"});
+  client.on("error",e=>console.error("Redis:",e.message));
+  await client.connect();
+  const sub=client.duplicate();
+  sub.on("error",e=>console.error("Redis subscriber:",e.message));
+  await sub.connect();
+  await sub.pSubscribe("tesla_V_*",async(message)=>{
+    try{
+      const raw=JSON.parse(message);
+      const n=saveVehicleTelemetry(raw); if(!n) return;
+      const active=getActiveTrip.get(n.vin);
+      const moving=n.speed!==null&&n.speed>1;
+      if(moving && !active && n.odo!==null){
+        startTrip.run(Date.now(),n.vin,n.soc,n.odo,n.lat,n.lng,JSON.stringify(raw));
+      }
+      if(active && !moving) scheduleTripEnd(n.vin,raw);
+      if(moving) clearTimeout(timers.get(n.vin));
+    }catch(e){console.error("Telemetry processing:",e.message);}
+  });
+  console.log("Redis telemetry consumer connected");
+}
+startRedis().catch(e=>console.error("Redis startup failed:",e.message));
+app.listen(PORT,()=>console.log("Tesla Fleet Bridge listening on :"+PORT));
