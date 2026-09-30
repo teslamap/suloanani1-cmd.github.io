@@ -981,7 +981,7 @@
     const rolling=CRR*mass*G;
     const refFlatWhKm=(rolling+refAero)/.90/3.6;
     const physFlatWhKm=(rolling+actualAero)/.90/3.6;
-    const flatKwh=dist/1000*Math.max(0,base+(physFlatWhKm-refFlatWhKm));
+    const flatKwh=dist/1000000*Math.max(0,base+(physFlatWhKm-refFlatWhKm)); // Wh/km * meters -> kWh
     let climb=0, descent=0, uphillKwh=0, regenKwh=0, gradeKnown=false;
     if(pts.length>1 && heights && heights.length===pts.length){
       gradeKnown=true;
