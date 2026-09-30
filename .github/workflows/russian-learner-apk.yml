@@ -46,5 +46,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: russian-learner-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: russian-learner-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
