@@ -1,0 +1,32 @@
+{
+  "host": "0.0.0.0",
+  "port": 443,
+  "log_level": "info",
+  "json_log_enable": true,
+  "namespace": "tesla",
+  "transmit_decoded_records": true,
+  "rate_limit": {
+    "enabled": true,
+    "message_interval_time": 30,
+    "message_limit": 1000
+  },
+  "records": {
+    "alerts": ["logger"],
+    "errors": ["logger"],
+    "connectivity": ["logger"],
+    "V": ["redis"]
+  },
+  "redis": {
+    "addrs": ["redis:6379"],
+    "publish_vin_topics": true,
+    "pool": {
+      "pool_size": 10,
+      "min_idle_conns": 2,
+      "conn_max_lifetime": 300
+    }
+  },
+  "tls": {
+    "server_cert": "/etc/certs/server/tls.crt",
+    "server_key": "/etc/certs/server/tls.key"
+  }
+}
