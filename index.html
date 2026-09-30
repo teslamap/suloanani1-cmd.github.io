@@ -1009,7 +1009,7 @@
       const d=document.createElement('div');d.id='energyDetail';d.style.cssText='font-size:12px;line-height:1.6;margin-top:5px;color:inherit;';
       metrics.appendChild(d);
     }
-    if($('energyDetail')) $('energyDetail').textContent='საშუალო: '+(r.net*1000/r.dist).toFixed(0)+' Wh/km · დიაპაზონი: '+r.low.toFixed(1)+'–'+r.high.toFixed(1)+' kWh · '+(r.gradeKnown?'რელიეფი გათვალისწინებულია':'რელიეფის მონაცემი მიუწვდომელია');
+    if($('energyDetail')) $('energyDetail').textContent='საშუალო: '+(r.net*1000000/r.dist).toFixed(0)+' Wh/km · დიაპაზონი: '+r.low.toFixed(1)+'–'+r.high.toFixed(1)+' kWh · '+(r.gradeKnown?'რელიეფი გათვალისწინებულია':'რელიეფის მონაცემი მიუწვდომელია');
   }
   async function estimate(route, summaryDistance) {
     const pts=sampleCoordinates(route); let h=null;
