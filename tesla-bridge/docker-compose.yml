@@ -26,10 +26,25 @@ services:
       - ./fleet-telemetry/config.json:/etc/tesla/config.json:ro
       - ./certs:/etc/certs/server:ro
     ports:
-      - "443:443"
+      - "8443:443"
     depends_on:
       - redis
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
 
 volumes:
   app-data:
   redis-data:
+  caddy-data:
+  caddy-config:
