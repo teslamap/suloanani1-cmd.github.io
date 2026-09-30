@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,9 +29,19 @@ jobs:
       - name: Build debug APK
         run: gradle -p android-app assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: tesla-smart-navigation-apk
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish latest APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Tesla Smart Navigation Android
+          prerelease: true
+          make_latest: false
+          files: android-app/app/build/outputs/apk/debug/app-debug.apk
+          overwrite_files: true
