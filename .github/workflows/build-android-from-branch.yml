@@ -1,0 +1,42 @@
+name: Build Tesla Android APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Tesla app branch
+        uses: actions/checkout@v4
+        with:
+          ref: tesla-fleet-bridge
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        run: gradle -p android-app assembleDebug --no-daemon
+
+      - name: Publish APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Tesla Smart Navigation Android
+          prerelease: true
+          make_latest: false
+          files: android-app/app/build/outputs/apk/debug/app-debug.apk
+          overwrite_files: true
