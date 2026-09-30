@@ -381,8 +381,18 @@
             factoryRange: 386,
             factoryKwh: 50,
             fullRange: 325,
-            baseConsumption: 150
+            baseConsumption: 125
         };
+
+        // Energy-model calibration reset for this branch:
+        // migrate old saved defaults/legacy calibration once, while preserving
+        // any value the user changes afterward.
+        const ENERGY_MODEL_VERSION = 'calibrated-125-v3';
+        if (localStorage.getItem('tesla_energy_model_version') !== ENERGY_MODEL_VERSION) {
+            carSettings.baseConsumption = 125;
+            localStorage.setItem('tesla_energy_model_version', ENERGY_MODEL_VERSION);
+            localStorage.setItem('tesla_settings', JSON.stringify(carSettings));
+        }
 
         let showCameras = false;
         let cameraLayerGroup = L.layerGroup();
@@ -449,32 +459,7 @@
             document.getElementById('suggestionsDropdown').style.display = 'none';
         });
 
-        routingControl.on('routesfound', e => {
-            const route = e.routes[0];
-            currentRouteDist = route.summary.totalDistance / 1000;
-            
-            loadSettingsFromUI();
-
-            let baseKwh = (currentRouteDist * carSettings.baseConsumption) / 1000;
-            currentRouteClimb = Math.round(currentRouteDist * 3.5); 
-            currentRouteDescent = Math.round(currentRouteDist * 3.3);
-            
-            let elevationFactorKwh = (currentRouteClimb * 0.005) - (currentRouteDescent * 0.003);
-            if (elevationFactorKwh < 0) elevationFactorKwh = 0;
-
-            let finalKwh = baseKwh + elevationFactorKwh;
-
-            const currentTotalCapacityKwh = (carSettings.fullRange * carSettings.baseConsumption) / 1000;
-            const usedPercent = (finalKwh / currentTotalCapacityKwh) * 100;
-
-            document.getElementById('distVal').innerText = currentRouteDist.toFixed(1);
-            document.getElementById('batVal').innerText = usedPercent.toFixed(1);
-            document.getElementById('kwhVal').innerText = finalKwh.toFixed(1);
-            document.getElementById('climbVal').innerText = currentRouteClimb;
-            document.getElementById('descentVal').innerText = currentRouteDescent;
-
-            document.getElementById('infoCard').style.display = 'flex';
-        });
+        // Energy display is handled exclusively by Energy estimator v2 below.
 
         async function toggleCameras() {
             showCameras = !showCameras;
@@ -1086,6 +1071,7 @@
   function renderEnergy(r) {
     lastEnergyResult=r;
     if(!r || !r.dist) return;
+    $('infoCard').style.display='flex';
     $('distVal').innerText=(r.dist/1000).toFixed(1);
     $('batVal').innerText=r.usedPct.toFixed(1);
     $('kwhVal').innerText=r.net.toFixed(1);
@@ -1108,7 +1094,7 @@
     window.currentEnergyEstimate=r;
   }
   addEnergySettings();
-  // Run after the legacy listener so this result replaces its rough distance-based elevation estimate.
+  // The only routesfound listener: calculate and render the calibrated energy model.
   if(typeof routingControl!=='undefined' && routingControl){
     routingControl.on('routesfound', e=>{
       const route=e.routes?.[0]; if(!route)return;
