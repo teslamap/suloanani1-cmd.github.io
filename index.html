@@ -1133,5 +1133,50 @@
 })();
 </script>
 
+
+<style>
+#teslaBridgeCard{position:fixed;right:14px;bottom:14px;z-index:9999;background:rgba(15,20,28,.94);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:12px;width:min(330px,calc(100vw - 28px));box-shadow:0 8px 30px rgba(0,0,0,.3);font-family:inherit}
+#teslaBridgeCard h4{margin:0 0 7px;font-size:15px}
+#teslaBridgeCard .tb-status{font-size:12px;opacity:.82;margin:6px 0 9px}
+#teslaBridgeCard button,#teslaBridgeCard input{box-sizing:border-box;width:100%;border:0;border-radius:9px;padding:9px;font:inherit}
+#teslaBridgeCard input{margin-bottom:7px;background:#fff;color:#111}
+#teslaBridgeCard button{background:#e82127;color:#fff;font-weight:700;cursor:pointer}
+#teslaBridgeCard .tb-small{font-size:10px;opacity:.6;margin-top:7px;line-height:1.35}
+</style>
+<div id="teslaBridgeCard">
+  <h4>⚡ Tesla Current Drive</h4>
+  <div id="teslaBridgeStatus" class="tb-status">Backend ჯერ არ არის მითითებული</div>
+  <input id="teslaBridgeUrl" placeholder="https://your-backend.example.com" autocomplete="url">
+  <button id="teslaConnectBtn">Tesla-ს დაკავშირება</button>
+  <div class="tb-small">ეს პანელი მხოლოდ მონაცემების წაკითხვას ამზადებს. მანქანის მართვის ბრძანებები გამორთულია.</div>
+</div>
+<script>
+(()=>{
+  const key='tesla_bridge_url';
+  const input=document.getElementById('teslaBridgeUrl');
+  const status=document.getElementById('teslaBridgeStatus');
+  const btn=document.getElementById('teslaConnectBtn');
+  const saved=localStorage.getItem(key)||'';
+  input.value=saved;
+  function clean(v){return String(v||'').trim().replace(/\/$/,'');}
+  async function check(){
+    const base=clean(input.value);
+    if(!base){status.textContent='მიუთითე backend-ის HTTPS მისამართი';return;}
+    localStorage.setItem(key,base);
+    status.textContent='ვერთდებით...';
+    try{
+      const r=await fetch(base+'/health',{headers:{Accept:'application/json'}});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      status.textContent=d.ok?'Backend მზად არის — Tesla OAuth-ზე გადასვლა შეგიძლია.':'Backend პასუხობს, მაგრამ მზადყოფნა ვერ დადასტურდა.';
+      if(d.ok) window.open(base+'/auth/tesla','_blank','noopener');
+    }catch(e){
+      status.textContent='Backend ვერ მოიძებნა: '+e.message;
+    }
+  }
+  btn.addEventListener('click',check);
+})();
+</script>
+
 </body>
 </html>
