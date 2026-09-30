@@ -1036,7 +1036,6 @@
     const pts=sampleCoordinates(route);
     const dist=summaryDistance>0?summaryDistance:(pts.length>1?pts.slice(1).reduce((s,p,i)=>s+distance(pts[i],p),0):0);
     const speedKmh=Math.max(30,Math.min(130,val('energySpeed',80)));
-    const speed=speedKmh/3.6;
     const wind=val('energyWind',0);
     const temp=val('energyTemp',20);
     const mass=1685+Math.max(0,val('energyLoad',0));
@@ -1047,13 +1046,13 @@
     const battery=Math.max(1,factoryKwh*Math.min(1.15,currentRange/factoryRange));
 
     /*
-      Empirical Model 3 SR+ baseline.
-      The early 2019-2020 SR+ is around 153 Wh/km real-world overall;
-      independent road tests also measured ~147 Wh/km at ~78 km/h.
-      We therefore use 148 Wh/km at 80 km/h as the neutral road baseline,
-      rather than adding a second theoretical road-load model on top of it.
+      Empirical calibration branch:
+      keep the normal-road baseline realistic, but strongly damp the raw
+      DEM elevation correction because the real-world baseline already
+      contains ordinary rolling/terrain losses and DEM samples can exaggerate
+      short climbs/descents. This avoids double-counting hills.
     */
-    const baseWhKm=148;
+    const baseWhKm=Math.max(90,Math.min(180,Number(carSettings.baseConsumption)||125));
     const dv=speedKmh-80;
     const speedFactor=Math.max(0.82,Math.min(1.32,1 + 0.0030*dv + 0.000006*dv*dv));
     const windFactor=Math.max(0.88,Math.min(1.28,1 + Math.max(-40,Math.min(40,wind))*0.0035));
@@ -1068,17 +1067,21 @@
       for(let i=1;i<pts.length;i++){
         const d=distance(pts[i-1],pts[i]); const dz=heights[i]-heights[i-1];
         if(dz>0){climb+=dz;uphillKwh+=mass*G*dz/3_600_000/.90;}
-        else if(dz<0){descent-=dz;regenKwh+=mass*G*(-dz)/3_600_000*.65;}
+        else if(dz<0){descent-=dz;regenKwh+=mass*G*(-dz)/3_600_000*.80;}
       }
     }
 
-    // Auxiliary power is added only as a small correction; the 148 Wh/km
-    // baseline already includes normal onboard systems.
+    // Apply only 30% of the theoretical net elevation energy to avoid
+    // double-counting terrain already reflected in the empirical Wh/km base.
+    const terrainKwh=gradeKnown ? Math.max(0,(uphillKwh-regenKwh)*0.30) : 0;
     const hours=dist/1000/speedKmh;
     const auxCorrection=Math.max(0,aux-0.25)*hours;
-    const net=Math.max(0,flatKwh+uphillKwh-regenKwh+auxCorrection);
+    const net=Math.max(0,flatKwh+terrainKwh+auxCorrection);
     const usedPct=net/battery*100;
-    return {dist,net,usedPct,battery,climb,descent,uphillKwh,regenKwh,auxKwh:auxCorrection,gradeKnown,flatKwh,low:net*.92,high:net*1.10};
+    return {
+      dist,net,usedPct,battery,climb,descent,uphillKwh,regenKwh,terrainKwh,
+      auxKwh:auxCorrection,gradeKnown,flatKwh,low:net*.92,high:net*1.10
+    };
   }
   function renderEnergy(r) {
     lastEnergyResult=r;
