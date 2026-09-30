@@ -111,10 +111,28 @@
         .leaflet-routing-container, .leaflet-routing-error, .leaflet-control-attribution { display: none !important; }
         
         .tesla-icon {
-            width: 30px; height: 55px;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200"><path d="M20,40 Q50,10 80,40 L85,150 Q50,190 15,150 Z" fill="%23cc0000" stroke="%23111" stroke-width="4"/><path d="M25,55 Q50,30 75,55 L72,80 Q50,70 28,80 Z" fill="%23222"/><path d="M28,110 Q50,100 72,110 L70,140 Q50,150 30,140 Z" fill="%23222"/><circle cx="20" cy="170" r="6" fill="%23ff0000"/><circle cx="80" cy="170" r="6" fill="%23ff0000"/><circle cx="25" cy="30" r="5" fill="%23ffffff"/><circle cx="75" cy="30" r="5" fill="%23ffffff"/></svg>');
-            background-size: contain; background-repeat: no-repeat;
+            width: 38px; height: 54px;
+            background: transparent;
+            position: relative;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,.55));
         }
+        .tesla-icon::before {
+            content: "";
+            position: absolute; inset: 2px 5px 3px;
+            background: linear-gradient(145deg,#f8fafc 0%,#dbeafe 48%,#94a3b8 100%);
+            border: 2px solid #334155;
+            border-radius: 48% 48% 35% 35% / 24% 24% 18% 18%;
+            clip-path: polygon(25% 0,75% 0,96% 23%,100% 80%,82% 100%,18% 100%,0 80%,4% 23%);
+        }
+        .tesla-icon::after {
+            content: "";
+            position: absolute; left: 10px; right: 10px; top: 12px; height: 27px;
+            background: linear-gradient(180deg,#0f172a 0%,#334155 100%);
+            border: 1px solid rgba(255,255,255,.75);
+            border-radius: 45% 45% 30% 30% / 18% 18% 12% 12%;
+            box-shadow: 0 15px 0 -10px #64748b;
+        }
+        .btn-center-map { background:#0f766e !important; color:#fff !important; border:1px solid #5eead4 !important; }
 
         .cam-badge {
             background: #ff3b30; color: white; border-radius: 50%; width: 26px; height: 26px;
@@ -191,7 +209,7 @@
             <div class="suggestions-dropdown panel-bg" id="suggestionsDropdown"></div>
         </div>
 
-        <button class="btn panel-bg" onclick="goToMyLocation()">📍</button>
+        <button class="btn btn-center-map" onclick="goToMyLocation()" title="ჩემს მდებარეობაზე ცენტრირება">◎ ცენტრირება</button>
         <button class="btn panel-bg" id="btnZoom" onclick="toggleZoomMode()">ZOOM</button>
         <button class="btn btn-mode-switch" onclick="toggleTheme()">☀️/🌙</button>
     </div>
@@ -890,21 +908,23 @@
         }
 
         function goToMyLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(pos => {
-                    myLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
-                    const wps = routingControl.getWaypoints();
-                    wps[0] = { latLng: myLocation };
-                    if (currentDestination) {
-                        wps[1] = { latLng: currentDestination };
-                    }
-                    routingControl.setWaypoints(wps);
-                    map.panTo(myLocation, { animate: true, duration: 0.5 });
-                }, null, { enableHighAccuracy: true });
+            if (!navigator.geolocation) {
+                showCustomAlert("მდებარეობა", "ამ მოწყობილობაზე GPS მდებარეობა მიუწვდომელია.");
+                return;
             }
+            navigator.geolocation.getCurrentPosition(pos => {
+                myLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
+                const wps = routingControl.getWaypoints();
+                wps[0] = { latLng: myLocation };
+                if (currentDestination) wps[1] = { latLng: currentDestination };
+                routingControl.setWaypoints(wps);
+                map.flyTo(myLocation, Math.max(map.getZoom(), 15), { animate: true, duration: 0.7 });
+            }, () => {
+                showCustomAlert("მდებარეობა", "GPS-ზე წვდომა ვერ მოხერხდა. შეამოწმეთ მდებარეობის ნებართვა.");
+            }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 });
         }
 
-        goToMyLocation();
+        // რუკა ავტომატურად არ გადადის GPS მდებარეობაზე; მომხმარებელი თავად აჭერს ცენტრირების ღილაკს.
     </script>
 
 <script>
