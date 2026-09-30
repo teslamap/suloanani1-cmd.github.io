@@ -428,7 +428,7 @@
                 });
                 return marker;
             },
-            lineOptions: { styles: [{ color: '#007aff', weight: 6, opacity: 0.9 }] }
+            lineOptions: { styles: [{ color: '#007aff', weight: 6, opacity: 0.08 }] }
         }).addTo(map);
 
         function validateLandCoordinates(latlng) {
@@ -992,6 +992,24 @@
     }
     return heights.every(Number.isFinite)?heights:null;
   }
+  let terrainLines=[];
+  function terrainColor(grade) {
+    const t=Math.max(-1,Math.min(1,grade/0.04));
+    const a=t<0?[34,197,94]:[250,204,21], b=t<0?[250,204,21]:[153,27,27], f=Math.abs(t);
+    return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*f).toString(16).padStart(2,'0')).join('');
+  }
+  function drawTerrainRoute(points, heights) {
+    terrainLines.forEach(line=>map.removeLayer(line)); terrainLines=[];
+    if(!points || !heights || points.length!==heights.length || points.length<2) return;
+    for(let i=1;i<points.length;i++){
+      const d=distance(points[i-1],points[i]); if(!d) continue;
+      const grade=(heights[i]-heights[i-1])/d;
+      const line=L.polyline([[points[i-1].lat,points[i-1].lng],[points[i].lat,points[i].lng]],{
+        color:terrainColor(grade),weight:7,opacity:0.95,lineCap:'round',lineJoin:'round',interactive:false
+      }).addTo(map);
+      terrainLines.push(line);
+    }
+  }
   function calcPhysics(route, heights, summaryDistance) {
     const pts=sampleCoordinates(route);
     const dist=summaryDistance>0?summaryDistance:(pts.length>1?pts.slice(1).reduce((s,p,i)=>s+distance(pts[i],p),0):0);
@@ -1048,7 +1066,7 @@
     lastRoute=route; lastRouteDistance=Number(summaryDistance)||0;
     const pts=sampleCoordinates(route); let h=null;
     if(pts.length>1){try{h=await elevations(pts);}catch(err){console.warn('Elevation lookup:',err);}}
-    const r=calcPhysics(route,h,summaryDistance);
+    drawTerrainRoute(pts,h);\n    const r=calcPhysics(route,h,summaryDistance);
     renderEnergy(r);
     window.currentEnergyEstimate=r;
   }
