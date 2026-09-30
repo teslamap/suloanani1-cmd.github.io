@@ -1,0 +1,35 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+      - app-data:/app/data
+      - ./keys:/app/keys:ro
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server","--appendonly","yes"]
+    volumes:
+      - redis-data:/data
+
+  fleet-telemetry:
+    image: tesla/fleet-telemetry:v0.9.4
+    restart: unless-stopped
+    command: ["/fleet-telemetry","-config=/etc/tesla/config.json"]
+    volumes:
+      - ./fleet-telemetry/config.json:/etc/tesla/config.json:ro
+      - ./certs:/etc/certs/server:ro
+    ports:
+      - "443:443"
+    depends_on:
+      - redis
+
+volumes:
+  app-data:
+  redis-data:
