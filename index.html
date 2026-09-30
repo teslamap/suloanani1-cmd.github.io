@@ -1066,7 +1066,8 @@
     lastRoute=route; lastRouteDistance=Number(summaryDistance)||0;
     const pts=sampleCoordinates(route); let h=null;
     if(pts.length>1){try{h=await elevations(pts);}catch(err){console.warn('Elevation lookup:',err);}}
-    drawTerrainRoute(pts,h);\n    const r=calcPhysics(route,h,summaryDistance);
+    drawTerrainRoute(pts,h);
+    const r=calcPhysics(route,h,summaryDistance);
     renderEnergy(r);
     window.currentEnergyEstimate=r;
   }
