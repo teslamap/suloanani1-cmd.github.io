@@ -1159,6 +1159,31 @@
   const saved=localStorage.getItem(key)||'';
   input.value=saved;
   function clean(v){return String(v||'').trim().replace(/\/$/,'');}
+  let session=localStorage.getItem('tesla_bridge_session')||'';
+  window.addEventListener('message',async(e)=>{
+    if(e.origin!==location.origin && e.origin!=='https://teslamap.github.io')return;
+    if(e.data?.type==='tesla-bridge-session'){
+      session=e.data.token||'';
+      if(session)localStorage.setItem('tesla_bridge_session',session);
+      status.textContent='Tesla დაკავშირებულია. ვამოწმებ Current Drive-ს...';
+      await loadDrive();
+    }
+  });
+  async function loadDrive(){
+    const base=clean(input.value);
+    if(!base||!session)return;
+    try{
+      const r=await fetch(base+'/api/current-drive',{headers:{Authorization:'Bearer '+session,Accept:'application/json'}});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      const last=d.telemetry?.[0];
+      if(last){
+        const speed=last.vehicle_speed==null?'—':last.vehicle_speed.toFixed(0)+' km/h';
+        const soc=last.soc==null?'—':last.soc.toFixed(1)+'%';
+        status.textContent='Current Drive: '+speed+' · SOC '+soc;
+      }else status.textContent='Tesla დაკავშირებულია — ჯერ telemetry არ მოსულა.';
+    }catch(e){status.textContent='Current Drive მიუწვდომელია: '+e.message;}
+  }
   async function check(){
     const base=clean(input.value);
     if(!base){status.textContent='მიუთითე backend-ის HTTPS მისამართი';return;}
@@ -1168,13 +1193,14 @@
       const r=await fetch(base+'/health',{headers:{Accept:'application/json'}});
       if(!r.ok)throw new Error('HTTP '+r.status);
       const d=await r.json();
-      status.textContent=d.ok?'Backend მზად არის — Tesla OAuth-ზე გადასვლა შეგიძლია.':'Backend პასუხობს, მაგრამ მზადყოფნა ვერ დადასტურდა.';
-      if(d.ok) window.open(base+'/auth/tesla','_blank','noopener');
-    }catch(e){
-      status.textContent='Backend ვერ მოიძებნა: '+e.message;
-    }
+      if(!d.ok)throw new Error('Backend readiness failed');
+      status.textContent='Backend მზად არის — Tesla OAuth იხსნება...';
+      window.open(base+'/auth/tesla','_blank','noopener');
+    }catch(e){status.textContent='Backend ვერ მოიძებნა: '+e.message;}
   }
   btn.addEventListener('click',check);
+  if(session)loadDrive();
+  setInterval(loadDrive,15000);
 })();
 </script>
 
