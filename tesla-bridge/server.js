@@ -12,6 +12,7 @@ const PORT = Number(process.env.PORT || 8080);
 const BASE = process.env.PUBLIC_BASE_URL || "";
 const TESLA_AUTH = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3";
 const TESLA_API = process.env.TESLA_API_BASE || "https://fleet-api.prd.eu.vn.cloud.tesla.com";
+const TESLA_TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
 
 const dataDir = process.env.DATA_DIR || path.resolve("data");
 fs.mkdirSync(dataDir,{recursive:true});
@@ -102,7 +103,7 @@ app.get("/auth/callback",async(req,res)=>{
       audience:TESLA_API,
       redirect_uri:`${BASE}/auth/callback`
     });
-    const r=await fetch(`${TESLA_AUTH}/token`,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body});
+    const r=await fetch(TESLA_TOKEN_URL,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body});
     const data=await r.json();
     if(!r.ok) return res.status(r.status).json(data);
     saveTokens.run(data.access_token,data.refresh_token||null,Date.now()+Number(data.expires_in||3600)*1000,Date.now());
@@ -116,7 +117,7 @@ async function token(){
   if(t.expires_at-Date.now()>60000) return t.access_token;
   if(!t.refresh_token) throw new Error("No refresh token available");
   const body=new URLSearchParams({grant_type:"refresh_token",client_id:process.env.TESLA_CLIENT_ID,refresh_token:t.refresh_token});
-  const r=await fetch(`${TESLA_AUTH}/token`,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body});
+  const r=await fetch(TESLA_TOKEN_URL,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body});
   const d=await r.json();
   if(!r.ok) throw new Error(d.error_description||d.error||"Token refresh failed");
   saveTokens.run(d.access_token,d.refresh_token||null,Date.now()+Number(d.expires_in||3600)*1000,Date.now());
