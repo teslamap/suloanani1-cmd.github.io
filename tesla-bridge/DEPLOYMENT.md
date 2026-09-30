@@ -7,7 +7,7 @@ This stack intentionally separates the browser/API HTTPS endpoint from the Tesla
 - Redis: internal only
 - SQLite: internal persistent volume
 
-Tesla's reference server uses TLS/mTLS and a vehicle WebSocket protocol; do not replace it with a normal JSON webhook. cite not allowed here
+Tesla's reference server uses TLS/mTLS and a vehicle WebSocket protocol; do not replace it with a normal JSON webhook.
 
 ## You must supply
 
