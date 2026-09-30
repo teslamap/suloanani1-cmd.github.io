@@ -425,7 +425,12 @@
 
         setTimeout(() => { map.invalidateSize(true); }, 200);
 
-        const teslaIcon = L.divIcon({ className: 'tesla-icon', iconSize: [30, 55], iconAnchor: [15, 27] });
+        const teslaIcon = L.divIcon({
+            className: '',
+            html: '<div style="width:38px;height:48px;filter:drop-shadow(0 2px 4px #0009)"><svg viewBox="0 0 48 60" width="38" height="48" xmlns="http://www.w3.org/2000/svg"><path d="M12 4 Q24 -1 36 4 L43 19 L46 45 Q45 53 38 56 L10 56 Q3 53 2 45 L5 19 Z" fill="#e2e8f0" stroke="#475569" stroke-width="2"/><path d="M13 11 Q24 6 35 11 L39 23 L9 23 Z" fill="#0f2742" stroke="#94a3b8" stroke-width="1.5"/><path d="M9 27 L39 27 L40 43 Q39 48 34 49 L14 49 Q9 48 8 43 Z" fill="#cbd5e1" stroke="#64748b" stroke-width="1.2"/><path d="M5 17 L9 15 L9 23 L5 25 Z M39 15 L43 17 L43 25 L39 23 Z" fill="#fef08a"/><path d="M12 52 L17 52 L17 56 L11 56 Z M31 52 L36 52 L37 56 L31 56 Z" fill="#1e293b"/></svg></div>',
+            iconSize: [38, 48],
+            iconAnchor: [19, 24]
+        });
 
         const routingControl = L.Routing.control({
             waypoints: [myLocation],
@@ -826,11 +831,8 @@
 
         function toggleZoomMode() {
             isCloseZoom = !isCloseZoom;
-            if (isCloseZoom) {
-                map.setView(myLocation, 16, { animate: true });
-            } else {
-                map.setView(myLocation, 14, { animate: true });
-            }
+            // Zoom only at the current map center; do not recenter to GPS.
+            map.setZoom(isCloseZoom ? 16 : 14, { animate: true });
         }
 
         function toggleTheme() {
