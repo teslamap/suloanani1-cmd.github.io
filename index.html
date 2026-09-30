@@ -994,9 +994,25 @@
   }
   let terrainLines=[];
   function terrainColor(grade) {
-    const t=Math.max(-1,Math.min(1,grade/0.04));
-    const a=t<0?[34,197,94]:[250,204,21], b=t<0?[250,204,21]:[153,27,27], f=Math.abs(t);
-    return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*f).toString(16).padStart(2,'0')).join('');
+    // Many vivid color stops make small slope changes visible instead of
+    // collapsing everything into only green/yellow/red.
+    const stops=[
+      [-1.00,[0,90,40]],[-0.85,[0,150,70]],[-0.70,[20,200,90]],[-0.55,[80,220,120]],
+      [-0.40,[0,210,180]],[-0.25,[0,190,240]],[-0.10,[70,130,255]],[-0.03,[150,90,255]],
+      [ 0.00,[245,245,245]],[0.03,[255,230,80]],[0.10,[255,190,0]],[0.20,[255,120,0]],
+      [0.30,[245,55,35]],[0.40,[205,25,30]],[0.55,[165,15,25]],[0.70,[120,0,20]],
+      [0.85,[85,0,15]],[1.00,[55,0,10]]
+    ];
+    const x=Math.max(-1,Math.min(1,grade/0.04));
+    for(let i=1;i<stops.length;i++){
+      if(x<=stops[i][0]){
+        const [p1,c1]=stops[i-1], [p2,c2]=stops[i], f=(x-p1)/(p2-p1);
+        const c=c1.map((v,j)=>Math.round(v+(c2[j]-v)*f));
+        return '#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
+      }
+    }
+    const c=stops[stops.length-1][1];
+    return '#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
   }
   function drawTerrainRoute(points, heights) {
     terrainLines.forEach(line=>map.removeLayer(line)); terrainLines=[];
