@@ -241,7 +241,7 @@
 
         <div class="settings-group" style="margin-top: 8px;">
             <label>საბაზისო წვა (Wh/km):</label>
-            <input type="number" id="baseConsumptionInput" class="settings-input" value="148" onchange="saveSettings()">
+            <input type="number" id="baseConsumptionInput" class="settings-input" value="125" onchange="saveSettings()">
         </div>
 
         <div class="calib-section">
@@ -796,7 +796,7 @@
             carSettings.fullRange = parseFloat(document.getElementById('fullRangeInput').value) || 325;
             carSettings.factoryRange = parseFloat(document.getElementById('factoryRangeVal').innerText) || 386;
             carSettings.factoryKwh = parseFloat(document.getElementById('factoryKwhVal').innerText) || 50;
-            carSettings.baseConsumption = parseFloat(document.getElementById('baseConsumptionInput').value) || 150;
+            carSettings.baseConsumption = parseFloat(document.getElementById('baseConsumptionInput').value) || 125;
         }
 
         function toggleSettings() {
